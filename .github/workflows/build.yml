@@ -2,10 +2,6 @@ name: Trigger Ubuntu24.04 CI
 run-name: Ubuntu24.04 - ${{ github.event.pull_request.title }}
 
 on:
-  pull_request_target:
-    types: labeled
-    paths:
-    - 'images/ubuntu/**'
   workflow_dispatch:
   
 defaults:
