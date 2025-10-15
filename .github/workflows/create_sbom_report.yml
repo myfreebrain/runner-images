@@ -3,10 +3,10 @@ name: Create SBOM for the release
 # github.event.client_payload.agentSpec - Current YAML Label
 # github.event.client_payload.ReleaseID - Current release ID
 # github.event.client_payload.imageVersion - AzDO image version "major.minor"
-# github.event.client_payload.ReleaseBranchName - Necessary to identify workflow run
 #
 # Current SYFT tool issues:
-# macOS (major): prompt privilegies that blocking process indefinetely (https://github.com/anchore/syft/issues/1367)
+# macOS (major): prompt privileges that blocking process indefinitely (https://github.com/anchore/syft/issues/1367)
+run-name: Collecting SBOM for ${{ github.event.client_payload.agentSpec || 'unknown image' }} - ${{ github.event.client_payload.imageVersion || 'unknown version' }}
 on:
   repository_dispatch:
     types: [generate-sbom]
@@ -20,7 +20,7 @@ jobs:
       check_status: ${{ steps.check.outputs.status }}
     runs-on: ubuntu-latest
     steps:
-    - name: Check release for ${{ github.event.client_payload.ReleaseBranchName }}
+    - name: Check release for ${{ github.event.client_payload.agentSpec }}
       id: check
       shell: pwsh
       run: |
@@ -45,7 +45,7 @@ jobs:
     if: ${{ needs.sbom-check.outputs.check_status == 'okay' }}
     runs-on: ${{ github.event.client_payload.agentSpec }}
     steps:
-      - name: Available image version check for ${{ github.event.client_payload.ReleaseBranchName }}
+      - name: Available image version check for ${{ github.event.client_payload.agentSpec }} - ${{ github.event.client_payload.imageVersion }}
         run: |
           $imageVersionComponents = $env:ImageVersion.Split('.')
           $imageMajorVersion = $imageVersionComponents[0]
@@ -55,14 +55,18 @@ jobs:
           }
       - name: Install SYFT tool on Windows
         if: ${{ runner.os == 'Windows' }}
-        run: curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b D:/syft
-      - name: Install SYFT tool on Ubuntu or macOS
-        if: ${{ runner.os != 'Windows' }}
-        run: curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin v0.100.0
+        run: curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b C:/syft
+      - name: Install SYFT tool on Ubuntu 
+        if: ${{ runner.os == 'Linux' }}
+        run: curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+      - name: Install SYFT v1.24.0 on macOS
+        if: ${{ runner.os == 'macOS' }}
+        run: curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin v1.24.0
+      
       #Running section.
       - name: Run SYFT on Windows
         if: ${{ runner.os == 'Windows' }}
-        run: D:/syft/syft dir:C:/ -vv -o spdx-json=sbom.json
+        run: C:/syft/syft dir:C:/ -vv -o spdx-json=sbom.json
       - name: Run SYFT on Ubuntu
         if: ${{ runner.os == 'Linux' }}
         run: syft dir:/ -vv -o spdx-json=sbom.json

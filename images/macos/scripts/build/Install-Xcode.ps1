@@ -8,9 +8,10 @@ $ErrorActionPreference = "Stop"
 Import-Module "$env:HOME/image-generation/helpers/Common.Helpers.psm1"
 Import-Module "$env:HOME/image-generation/helpers/Xcode.Installer.psm1" -DisableNameChecking
 
+$os = Get-OSVersion
 $arch = Get-Architecture
 [Array]$xcodeVersions = (Get-ToolsetContent).xcode.$arch.versions
-write-host $xcodeVersions
+Write-Host $xcodeVersions
 $defaultXcode = (Get-ToolsetContent).xcode.default
 [Array]::Reverse($xcodeVersions)
 $threadCount = "5"
@@ -33,17 +34,15 @@ Write-Host "Configuring Xcode versions..."
 $xcodeVersions | ForEach-Object {
     Write-Host "Configuring Xcode $($_.link) ..."
     Invoke-XcodeRunFirstLaunch -Version $_.link
-
-    if ($_.install_runtimes -eq 'true') {
-        # Additional simulator runtimes are included by default for Xcode < 14
-        Install-AdditionalSimulatorRuntimes -Version $_.link
+    Install-XcodeAdditionalSimulatorRuntimes -Version $_.link -Arch $arch -Runtimes $_.install_runtimes
+    if ($_.link -match '\d{2}(?=[._])' -and [int]$matches[0] -ge 26) {
+        Install-XcodeAdditionalComponents -Version $_.link
     }
+}
 
-    ForEach($runtime in $_.runtimes) {
-        Write-Host "Installing Additional runtimes for Xcode '$runtime' ..."
-        $xcodebuildPath = Get-XcodeToolPath -Version $_.link -ToolName 'xcodebuild'
-        Invoke-ValidateCommand "sudo $xcodebuildPath -downloadPlatform $runtime" | Out-Null
-    }
+# Update dyld shared cache for the latest stable Xcode version
+if ((-not $os.IsSonoma)) {
+    Update-DyldCache -XcodeVersions $xcodeVersions
 }
 
 Invoke-XcodeRunFirstLaunch -Version $defaultXcode
